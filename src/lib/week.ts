@@ -23,3 +23,13 @@ export function slotStart(day: Date, hour: number) {
 export function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
   return aStart < bEnd && aEnd > bStart;
 }
+
+/** Parses "startISO_endISO,startISO_endISO" into valid, sorted ranges (one request, many days). */
+export function parseSlots(raw: string) {
+  return raw
+    .split(",")
+    .map((p) => p.split("_"))
+    .map(([a, b]) => ({ start: new Date(a ?? ""), end: new Date(b ?? "") }))
+    .filter((x) => !isNaN(x.start.getTime()) && !isNaN(x.end.getTime()) && x.end > x.start)
+    .sort((x, y) => x.start.getTime() - y.start.getTime());
+}

@@ -117,52 +117,74 @@ function CalendarPage() {
     return { selectable: !past && !unavailable, hits: unavailable ? relevant : relevant.filter((b) => mineIds.has(b.id)), past, unavailable };
   }
 
-  // Selection
-  const [sel, setSel] = useState<{ day: number; a: number; b: number } | null>(null);
+  // Selection: one contiguous range per day, any number of days (also across weeks)
+  type DaySel = { day: Date; a: number; b: number };
+  const [sels, setSels] = useState<Record<string, DaySel>>({});
   const [dragging, setDragging] = useState(false);
-  useEffect(() => setSel(null), [search.week, search.venue, search.n]);
+  useEffect(() => setSels({}), [search.venue, search.n]);
   useEffect(() => {
     const up = () => setDragging(false);
     window.addEventListener("mouseup", up);
     return () => window.removeEventListener("mouseup", up);
   }, []);
+  const dk = (d: Date) => format(d, "yyyy-MM-dd");
 
   function extendTo(dayIdx: number, hour: number) {
-    if (!sel || sel.day !== dayIdx) return;
-    const dir = hour >= sel.a ? 1 : -1;
-    let b = sel.a;
+    const day = days[dayIdx]!;
+    const cur = sels[dk(day)];
+    if (!cur) return;
+    const dir = hour >= cur.a ? 1 : -1;
+    let b = cur.a;
     while (b !== hour) {
       const next = b + dir;
-      if (!cellInfo(days[dayIdx]!, next).selectable) break;
+      if (!cellInfo(day, next).selectable) break;
       b = next;
     }
-    setSel({ ...sel, b });
+    setSels((p) => ({ ...p, [dk(day)]: { ...cur, b } }));
   }
 
   function onCellDown(dayIdx: number, hour: number) {
-    if (sel && sel.day === dayIdx && !dragging && hour !== sel.a) {
+    const day = days[dayIdx]!;
+    const key = dk(day);
+    const cur = sels[key];
+    if (cur && !dragging && hour !== cur.a) {
       extendTo(dayIdx, hour);
       return;
     }
-    setSel({ day: dayIdx, a: hour, b: hour });
+    if (cur && cur.a === hour && cur.b === hour) {
+      removeDay(key);
+      return;
+    }
+    setSels((p) => ({ ...p, [key]: { day, a: hour, b: hour } }));
     setDragging(true);
   }
 
-  const selRange = sel
-    ? { start: slotStart(days[sel.day]!, Math.min(sel.a, sel.b)), end: slotStart(days[sel.day]!, Math.max(sel.a, sel.b) + 1) }
-    : null;
+  function removeDay(key: string) {
+    setSels((p) => {
+      const n = { ...p };
+      delete n[key];
+      return n;
+    });
+  }
+
+  const ranges = Object.entries(sels)
+    .sort(([x], [y]) => x.localeCompare(y))
+    .map(([key, s]) => ({
+      key,
+      start: slotStart(s.day, Math.min(s.a, s.b)),
+      end: slotStart(s.day, Math.max(s.a, s.b) + 1),
+    }));
 
   function setSearch(patch: Partial<Search>) {
     navigate({ search: (prev) => ({ ...prev, ...patch }) });
   }
 
   function goToRequest() {
-    if (!selRange) return;
+    if (ranges.length === 0) return;
     navigate({
       to: "/wniosek/nowy",
       search: {
-        start: selRange.start.toISOString(),
-        end: selRange.end.toISOString(),
+        slots: ranges.map((r) => `${r.start.toISOString()}_${r.end.toISOString()}`).join(","),
         venue: mode === "venue" ? venueId : undefined,
         n: mode === "people" ? search.n : undefined,
       },
@@ -268,7 +290,8 @@ function CalendarPage() {
               <div className="border-b pr-2 pt-1 text-right text-xs text-muted-foreground">{String(h).padStart(2, "0")}:00</div>
               {days.map((d, di) => {
                 const info = cellInfo(d, h);
-                const inSel = sel && sel.day === di && h >= Math.min(sel.a, sel.b) && h <= Math.max(sel.a, sel.b);
+                const ds = sels[dk(d)];
+                const inSel = ds && h >= Math.min(ds.a, ds.b) && h <= Math.max(ds.a, ds.b);
                 const mine = info.hits.filter((b) => mineIds.has(b.id));
                 const showDetails = isAdmin ? info.hits : mine;
                 return (
@@ -297,19 +320,31 @@ function CalendarPage() {
         </div>
       </div>
 
-      {selRange && (
-        <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit items-center gap-4 rounded-full border bg-primary px-6 py-3 text-primary-foreground shadow-xl">
-          <span className="text-sm">
-            {format(selRange.start, "EEEE d MMM", { locale: pl })}, {format(selRange.start, "HH:mm")}–{format(selRange.end, "HH:mm")}
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => setSel(null)}>Anuluj</Button>
+      {ranges.length > 0 && (
+        <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit max-w-[95vw] flex-wrap items-center gap-3 rounded-2xl border bg-primary px-5 py-3 text-primary-foreground shadow-xl">
+          <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+            {ranges.map((r) => (
+              <span key={r.key} className="flex items-center gap-1 rounded-full bg-primary-foreground/15 py-0.5 pl-3 pr-1 text-xs">
+                <span className="capitalize">{format(r.start, "EEE d MMM", { locale: pl })}</span>, {format(r.start, "HH:mm")}–{format(r.end, "HH:mm")}
+                <button
+                  type="button"
+                  aria-label="Usuń dzień"
+                  className="ml-1 rounded-full px-1.5 hover:bg-primary-foreground/20"
+                  onClick={() => removeDay(r.key)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setSels({})}>Wyczyść</Button>
           <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={goToRequest}>
-            Złóż wniosek
+            Złóż wniosek ({ranges.length} {ranges.length === 1 ? "dzień" : "dni"})
           </Button>
         </div>
       )}
       <p className="mt-4 text-sm text-muted-foreground">
-        Zaznacz wolne godziny przeciągając myszką w obrębie jednego dnia (lub kliknij początek, a potem koniec).
+        Zaznacz wolne godziny przeciągając myszką w obrębie dnia (lub kliknij początek, a potem koniec). Każdy kolejny dzień to osobny zakres — możesz zaznaczyć dowolnie wiele dni, także w innych tygodniach. Wszystkie trafią do jednego wniosku.
       </p>
     </div>
   );
