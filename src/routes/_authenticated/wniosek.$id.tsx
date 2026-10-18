@@ -97,7 +97,7 @@ function Detail() {
   const mailInfo = { wniosek: b.event_name, obiekt: b.venues?.name, termin: group.map(fmtRange).join("; ") };
 
   async function approve() {
-    const { error } = await supabase.from("bookings").update({ status: "approved", rejection_reason: null }).eq("request_id", b.request_id);
+    const { error } = await supabase.from("bookings").update({ status: "approved", rejection_reason: null }).eq("request_id", b!.request_id);
     if (error) { toast.error(error.message); return; }
     toast.success("Wniosek zaakceptowany");
     await notifyApplicant(b!.contact_email, "approved", mailInfo);
@@ -105,7 +105,7 @@ function Detail() {
   }
   async function reject() {
     if (!reason.trim()) { toast.error("Podaj uzasadnienie odrzucenia"); return; }
-    const { error } = await supabase.from("bookings").update({ status: "rejected", rejection_reason: reason.trim() }).eq("request_id", b.request_id);
+    const { error } = await supabase.from("bookings").update({ status: "rejected", rejection_reason: reason.trim() }).eq("request_id", b!.request_id);
     if (error) { toast.error(error.message); return; }
     toast.success("Wniosek odrzucony");
     await notifyApplicant(b!.contact_email, "rejected", { ...mailInfo, uzasadnienie: reason.trim() });
@@ -114,7 +114,7 @@ function Detail() {
   }
   async function remove() {
     if (!confirm(group.length > 1 ? `Na pewno usunąć cały wniosek (${group.length} dni)?` : "Na pewno usunąć ten wniosek?")) return;
-    const { error } = await supabase.from("bookings").delete().eq("request_id", b.request_id);
+    const { error } = await supabase.from("bookings").delete().eq("request_id", b!.request_id);
     if (error) { toast.error(error.message); return; }
     if (isAdmin && b!.user_id !== user?.id) await notifyApplicant(b!.contact_email, "deleted", mailInfo);
     qc.invalidateQueries();
