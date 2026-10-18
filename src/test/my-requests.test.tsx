@@ -31,6 +31,7 @@ import { MyRequests } from "@/routes/_authenticated/moje-wnioski";
 
 const OWN = {
   id: "b-1",
+  request_id: "req-1",
   event_name: "próba",
   organization: "test",
   status: "approved",
@@ -40,7 +41,7 @@ const OWN = {
   participants: 50,
   venues: { name: "Sala Kameralna" },
 };
-const REJECTED = { ...OWN, id: "b-2", event_name: "xas", status: "rejected" };
+const REJECTED = { ...OWN, id: "b-2", request_id: "req-2", event_name: "xas", status: "rejected" };
 
 function renderPage(rows: unknown[]) {
   mocks.order.mockResolvedValue({ data: rows, error: null });
@@ -85,5 +86,15 @@ describe("Moje wnioski", () => {
 
     await waitFor(() => expect(screen.getByText(/Nie złożyłeś jeszcze żadnego wniosku/)).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Przejdź do kalendarza" })).toHaveAttribute("href", "/");
+  });
+
+  it("shows a multi-day request as one grouped entry", async () => {
+    const day2 = { ...OWN, id: "b-1b", request_id: "req-1", start_at: "2030-01-16T07:00:00.000Z", end_at: "2030-01-16T09:00:00.000Z" };
+    renderPage([day2, OWN]);
+
+    await waitFor(() => expect(screen.getByText("próba")).toBeInTheDocument());
+    expect(screen.getByText("2 dni")).toBeInTheDocument();
+    // one card per request, not one per day
+    expect(screen.getAllByRole("link", { name: /próba/ })).toHaveLength(1);
   });
 });

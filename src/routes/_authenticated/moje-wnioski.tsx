@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { CalendarDays, ChevronRight, Inbox, Users } from "lucide-react";
@@ -54,7 +54,7 @@ export function MyRequests() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id,event_name,organization,status,kind,start_at,end_at,participants,venues(name)")
+        .select("id,request_id,event_name,organization,status,kind,start_at,end_at,participants,venues(name)")
         .eq("user_id", user!.id)
         .order("start_at", { ascending: false });
       if (error) throw error;
@@ -63,11 +63,39 @@ export function MyRequests() {
   });
 
   const rows = q.data ?? [];
-  const count = (key: StatusFilter) => (key === "all" ? rows.length : rows.filter((r) => r.status === key).length);
-  const visible = rows.filter((r) => filter === "all" || r.status === filter);
+
+  type Row = (typeof rows)[number];
+
+  const groups = useMemo(() => {
+    const byRequest = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = r.request_id ?? r.id;
+      const list = byRequest.get(key);
+      if (list) list.push(r);
+      else byRequest.set(key, [r]);
+    }
+    return Array.from(byRequest.values()).map((list) => {
+      const days = [...list].sort((a, b) => a.start_at.localeCompare(b.start_at));
+      return {
+        key: days[0]!.request_id ?? days[0]!.id,
+        linkId: days[0]!.id,
+        eventName: days[0]!.event_name,
+        organization: days[0]!.organization,
+        status: days[0]!.status,
+        kind: days[0]!.kind,
+        participants: days[0]!.participants,
+        venue: days[0]!.venues?.name ?? "Obiekt",
+        days,
+      };
+    });
+  }, [rows]);
+
+  const count = (key: StatusFilter) =>
+    key === "all" ? groups.length : groups.filter((g) => g.status === key).length;
+  const visible = groups.filter((g) => filter === "all" || g.status === filter);
   const now = new Date();
-  const upcoming = visible.filter((r) => new Date(r.end_at) >= now);
-  const past = visible.filter((r) => new Date(r.end_at) < now);
+  const upcoming = visible.filter((g) => new Date(g.days[g.days.length - 1]!.end_at) >= now);
+  const past = visible.filter((g) => new Date(g.days[g.days.length - 1]!.end_at) < now);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -119,56 +147,96 @@ export function MyRequests() {
 
       {!q.isLoading && visible.length > 0 && (
         <div className="space-y-8">
-          {upcoming.length > 0 && <Section title="Nadchodzące" rows={upcoming} />}
-          {past.length > 0 && <Section title="Minione" rows={past} />}
+          {upcoming.length > 0 && <Section title="Nadchodzące" groups={upcoming} />}
+          {past.length > 0 && <Section title="Minione" groups={past} />}
         </div>
       )}
     </div>
   );
 }
 
-function Section({ title, rows }: { title: string; rows: { id: string; event_name: string; organization: string; status: string; kind: string; start_at: string; end_at: string; participants: number; venues: { name: string } | null }[] }) {
+type Group = {
+  key: string;
+  linkId: string;
+  eventName: string;
+  organization: string;
+  status: string;
+  kind: string;
+  participants: number;
+  venue: string;
+  days: { start_at: string; end_at: string }[];
+};
+
+function dayCountLabel(n: number) {
+  return n === 1 ? "1 dzień" : `${n} dni`;
+}
+
+function Section({ title, groups }: { title: string; groups: Group[] }) {
   return (
     <section>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">{title}</h2>
       <ul className="space-y-3">
-        {rows.map((r) => (
-          <li key={r.id}>
-            <Link
-              to="/wniosek/$id"
-              params={{ id: r.id }}
-              className="flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-secondary/40"
-            >
-              <div className="w-16 shrink-0 text-center">
-                <div className="font-display text-2xl leading-none">{format(new Date(r.start_at), "d")}</div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{format(new Date(r.start_at), "MMM", { locale: pl })}</div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-medium">{r.event_name}</span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[r.status] ?? "bg-secondary")}>
-                    {STATUS_LABEL[r.status] ?? r.status}
-                  </span>
-                  {r.kind === "event" && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Wydarzenie</span>}
+        {groups.map((g) => {
+          const first = g.days[0]!;
+          const last = g.days[g.days.length - 1]!;
+          const multi = g.days.length > 1;
+          const sameMonth = multi && format(new Date(first.start_at), "yyyy-MM") === format(new Date(last.start_at), "yyyy-MM");
+          return (
+            <li key={g.key}>
+              <Link
+                to="/wniosek/$id"
+                params={{ id: g.linkId }}
+                className="flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-secondary/40"
+              >
+                <div className="w-16 shrink-0 text-center">
+                  {multi ? (
+                    <>
+                      <div className="font-display text-xl leading-none">
+                        {format(new Date(first.start_at), "d")}
+                        {sameMonth ? `–${format(new Date(last.start_at), "d")}` : ""}
+                      </div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {format(new Date(first.start_at), "MMM", { locale: pl })}
+                        {!sameMonth && `–${format(new Date(last.start_at), "MMM", { locale: pl })}`}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-display text-2xl leading-none">{format(new Date(first.start_at), "d")}</div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{format(new Date(first.start_at), "MMM", { locale: pl })}</div>
+                    </>
+                  )}
                 </div>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {r.venues?.name ?? "Obiekt"} · {r.organization}
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="size-3.5" />
-                    {format(new Date(r.start_at), "HH:mm")}–{format(new Date(r.end_at), "HH:mm")}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="size-3.5" />
-                    {r.participants}
-                  </span>
-                </p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </Link>
-          </li>
-        ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{g.eventName}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[g.status] ?? "bg-secondary")}>
+                      {STATUS_LABEL[g.status] ?? g.status}
+                    </span>
+                    {g.kind === "event" && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Wydarzenie</span>}
+                    {multi && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{dayCountLabel(g.days.length)}</span>}
+                  </div>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">
+                    {g.venue} · {g.organization}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="size-3.5" />
+                      {multi
+                        ? `${format(new Date(first.start_at), "d MMM", { locale: pl })} – ${format(new Date(last.start_at), "d MMM", { locale: pl })}, ${format(new Date(first.start_at), "HH:mm")}–${format(new Date(first.end_at), "HH:mm")}`
+                        : `${format(new Date(first.start_at), "HH:mm")}–${format(new Date(first.end_at), "HH:mm")}`}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="size-3.5" />
+                      {g.participants}
+                    </span>
+                  </p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
