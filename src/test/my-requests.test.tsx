@@ -31,6 +31,7 @@ import { MyRequests } from "@/routes/_authenticated/moje-wnioski";
 
 const OWN = {
   id: "b-1",
+  request_id: "req-1",
   event_name: "próba",
   organization: "test",
   status: "approved",
@@ -40,7 +41,7 @@ const OWN = {
   participants: 50,
   venues: { name: "Sala Kameralna" },
 };
-const REJECTED = { ...OWN, id: "b-2", event_name: "xas", status: "rejected" };
+const REJECTED = { ...OWN, id: "b-2", request_id: "req-2", event_name: "xas", status: "rejected" };
 
 function renderPage(rows: unknown[]) {
   mocks.order.mockResolvedValue({ data: rows, error: null });
