@@ -9,6 +9,10 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession, useIsAdmin } from "@/lib/session";
+import { Button } from "@/components/ui/button";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -78,14 +82,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Rezerwacje sal" },
+      { name: "description", content: "Kalendarz dostępności i rezerwacje obiektów." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -93,6 +93,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Manrope:wght@400;500;600;700&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -103,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pl">
       <head>
         <HeadContent />
       </head>
@@ -117,11 +123,73 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <Header />
+      <main className="min-h-[calc(100vh-4rem)]">
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </main>
+      <Toaster />
     </QueryClientProvider>
+  );
+}
+
+function Header() {
+  const { user } = useSession();
+  const isAdmin = useIsAdmin(user?.id);
+  const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    router.navigate({ to: "/auth", search: { redirect: "/" }, replace: true });
+  }
+  return (
+    <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+      <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+        <Link to="/" className="font-display text-xl font-semibold">
+          Sale<span className="text-accent">.</span>
+        </Link>
+        <nav className="order-3 flex w-full flex-wrap gap-4 text-sm lg:order-none lg:w-auto">
+          <Link to="/" className="text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground font-semibold" }} activeOptions={{ exact: true }}>
+            Kalendarz
+          </Link>
+          <Link to="/obiekty" className="text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground font-semibold" }}>
+            Obiekty
+          </Link>
+          <Link to="/moje-wnioski" className="text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground font-semibold" }}>
+            Moje wnioski
+          </Link>
+          <Link to="/profil-ngo" className="text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground font-semibold" }}>
+            Profil NGO
+          </Link>
+        </nav>
+        <div className="ml-auto flex items-center gap-3 text-sm">
+          {user ? (
+            <>
+              {isAdmin && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">Administrator</span>}
+              <span className="hidden text-muted-foreground sm:inline">{user.email}</span>
+              <Button variant="outline" size="sm" onClick={signOut}>Wyloguj</Button>
+            </>
+          ) : (
+            <Button asChild size="sm">
+              <Link to="/auth" search={{ redirect: "/" }}>Zaloguj się</Link>
+            </Button>
+          )}
+        </div>
+      </div>
+    </header>
   );
 }
