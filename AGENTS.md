@@ -13,3 +13,4 @@
 - Overlaps are blocked by a DB trigger on `bookings`, not just UI. Why: concurrent requests can't double-book.
 - NGO directory names are derived from RLS-protected bookings; ordinary users use their latest request's organization and administrators see distinct organizations. Why: no separate NGO membership model exists yet, and booking details must stay private.
 - NGO profiles live in their own table (contact data + KRS), created by the signup trigger from user metadata; external registry and NGO-directory links are derived from KRS in src/lib/ngo.ts. Why: keep organization identity and external URL construction consistent without storing redundant links; REGON is optional for admins too.
+- One request can span many days: each day is its own `bookings` row, grouped by a shared `request_id`; approve/reject/delete act on the whole group. Why: keeps the overlap trigger and busy-slot RPC per-range while users see one request.
