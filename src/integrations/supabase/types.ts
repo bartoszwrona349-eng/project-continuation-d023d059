@@ -165,21 +165,27 @@ export type Database = {
           capacity: number
           created_at: string
           description: string | null
+          equipment: string[]
           id: string
+          image_url: string | null
           name: string
         }
         Insert: {
           capacity: number
           created_at?: string
           description?: string | null
+          equipment?: string[]
           id?: string
+          image_url?: string | null
           name: string
         }
         Update: {
           capacity?: number
           created_at?: string
           description?: string | null
+          equipment?: string[]
           id?: string
+          image_url?: string | null
           name?: string
         }
         Relationships: []

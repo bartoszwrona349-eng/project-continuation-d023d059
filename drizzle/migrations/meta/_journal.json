@@ -29,6 +29,20 @@
       "when": 1792298406034,
       "tag": "0003_booking_request_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792299113901,
+      "tag": "0004_venues_image_equipment",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792299124590,
+      "tag": "0005_venue_images_auth_read",
+      "breakpoints": true
     }
   ]
 }
