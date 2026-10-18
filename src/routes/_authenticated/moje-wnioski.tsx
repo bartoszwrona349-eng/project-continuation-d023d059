@@ -147,56 +147,96 @@ export function MyRequests() {
 
       {!q.isLoading && visible.length > 0 && (
         <div className="space-y-8">
-          {upcoming.length > 0 && <Section title="Nadchodzące" rows={upcoming} />}
-          {past.length > 0 && <Section title="Minione" rows={past} />}
+          {upcoming.length > 0 && <Section title="Nadchodzące" groups={upcoming} />}
+          {past.length > 0 && <Section title="Minione" groups={past} />}
         </div>
       )}
     </div>
   );
 }
 
-function Section({ title, rows }: { title: string; rows: { id: string; event_name: string; organization: string; status: string; kind: string; start_at: string; end_at: string; participants: number; venues: { name: string } | null }[] }) {
+type Group = {
+  key: string;
+  linkId: string;
+  eventName: string;
+  organization: string;
+  status: string;
+  kind: string;
+  participants: number;
+  venue: string;
+  days: { start_at: string; end_at: string }[];
+};
+
+function dayCountLabel(n: number) {
+  return n === 1 ? "1 dzień" : `${n} dni`;
+}
+
+function Section({ title, groups }: { title: string; groups: Group[] }) {
   return (
     <section>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">{title}</h2>
       <ul className="space-y-3">
-        {rows.map((r) => (
-          <li key={r.id}>
-            <Link
-              to="/wniosek/$id"
-              params={{ id: r.id }}
-              className="flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-secondary/40"
-            >
-              <div className="w-16 shrink-0 text-center">
-                <div className="font-display text-2xl leading-none">{format(new Date(r.start_at), "d")}</div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{format(new Date(r.start_at), "MMM", { locale: pl })}</div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-medium">{r.event_name}</span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[r.status] ?? "bg-secondary")}>
-                    {STATUS_LABEL[r.status] ?? r.status}
-                  </span>
-                  {r.kind === "event" && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Wydarzenie</span>}
+        {groups.map((g) => {
+          const first = g.days[0]!;
+          const last = g.days[g.days.length - 1]!;
+          const multi = g.days.length > 1;
+          const sameMonth = multi && format(new Date(first.start_at), "yyyy-MM") === format(new Date(last.start_at), "yyyy-MM");
+          return (
+            <li key={g.key}>
+              <Link
+                to="/wniosek/$id"
+                params={{ id: g.linkId }}
+                className="flex items-center gap-4 rounded-lg border bg-card p-4 transition-colors hover:border-primary/50 hover:bg-secondary/40"
+              >
+                <div className="w-16 shrink-0 text-center">
+                  {multi ? (
+                    <>
+                      <div className="font-display text-xl leading-none">
+                        {format(new Date(first.start_at), "d")}
+                        {sameMonth ? `–${format(new Date(last.start_at), "d")}` : ""}
+                      </div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {format(new Date(first.start_at), "MMM", { locale: pl })}
+                        {!sameMonth && `–${format(new Date(last.start_at), "MMM", { locale: pl })}`}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-display text-2xl leading-none">{format(new Date(first.start_at), "d")}</div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">{format(new Date(first.start_at), "MMM", { locale: pl })}</div>
+                    </>
+                  )}
                 </div>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {r.venues?.name ?? "Obiekt"} · {r.organization}
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="size-3.5" />
-                    {format(new Date(r.start_at), "HH:mm")}–{format(new Date(r.end_at), "HH:mm")}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="size-3.5" />
-                    {r.participants}
-                  </span>
-                </p>
-              </div>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </Link>
-          </li>
-        ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-medium">{g.eventName}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_TONE[g.status] ?? "bg-secondary")}>
+                      {STATUS_LABEL[g.status] ?? g.status}
+                    </span>
+                    {g.kind === "event" && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">Wydarzenie</span>}
+                    {multi && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs">{dayCountLabel(g.days.length)}</span>}
+                  </div>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">
+                    {g.venue} · {g.organization}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="size-3.5" />
+                      {multi
+                        ? `${format(new Date(first.start_at), "d MMM", { locale: pl })} – ${format(new Date(last.start_at), "d MMM", { locale: pl })}, ${format(new Date(first.start_at), "HH:mm")}–${format(new Date(first.end_at), "HH:mm")}`
+                        : `${format(new Date(first.start_at), "HH:mm")}–${format(new Date(first.end_at), "HH:mm")}`}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="size-3.5" />
+                      {g.participants}
+                    </span>
+                  </p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
