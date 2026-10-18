@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ObiektyRouteImport } from './routes/obiekty'
+import { Route as AuthenticatedListaWnioskowRouteImport } from './routes/_authenticated/lista-wnioskow'
 import { Route as AuthenticatedMojeWnioskiRouteImport } from './routes/_authenticated/moje-wnioski'
 import { Route as AuthenticatedProfilNgoRouteImport } from './routes/_authenticated/profil-ngo'
 import { Route as AuthenticatedNgoNameRouteImport } from './routes/_authenticated/ngo.$name'
@@ -38,6 +39,12 @@ const ObiektyRoute = ObiektyRouteImport.update({
   path: '/obiekty',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedListaWnioskowRoute =
+  AuthenticatedListaWnioskowRouteImport.update({
+    id: '/lista-wnioskow',
+    path: '/lista-wnioskow',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMojeWnioskiRoute =
   AuthenticatedMojeWnioskiRouteImport.update({
     id: '/moje-wnioski',
@@ -70,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/obiekty': typeof ObiektyRoute
+  '/lista-wnioskow': typeof AuthenticatedListaWnioskowRoute
   '/moje-wnioski': typeof AuthenticatedMojeWnioskiRoute
   '/profil-ngo': typeof AuthenticatedProfilNgoRoute
   '/ngo/$name': typeof AuthenticatedNgoNameRoute
@@ -80,6 +88,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/obiekty': typeof ObiektyRoute
+  '/lista-wnioskow': typeof AuthenticatedListaWnioskowRoute
   '/moje-wnioski': typeof AuthenticatedMojeWnioskiRoute
   '/profil-ngo': typeof AuthenticatedProfilNgoRoute
   '/ngo/$name': typeof AuthenticatedNgoNameRoute
@@ -92,6 +101,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/obiekty': typeof ObiektyRoute
+  '/_authenticated/lista-wnioskow': typeof AuthenticatedListaWnioskowRoute
   '/_authenticated/moje-wnioski': typeof AuthenticatedMojeWnioskiRoute
   '/_authenticated/profil-ngo': typeof AuthenticatedProfilNgoRoute
   '/_authenticated/ngo/$name': typeof AuthenticatedNgoNameRoute
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/obiekty'
+    | '/lista-wnioskow'
     | '/moje-wnioski'
     | '/profil-ngo'
     | '/ngo/$name'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/obiekty'
+    | '/lista-wnioskow'
     | '/moje-wnioski'
     | '/profil-ngo'
     | '/ngo/$name'
@@ -125,6 +137,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/obiekty'
+    | '/_authenticated/lista-wnioskow'
     | '/_authenticated/moje-wnioski'
     | '/_authenticated/profil-ngo'
     | '/_authenticated/ngo/$name'
@@ -169,6 +182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObiektyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/lista-wnioskow': {
+      id: '/_authenticated/lista-wnioskow'
+      path: '/lista-wnioskow'
+      fullPath: '/lista-wnioskow'
+      preLoaderRoute: typeof AuthenticatedListaWnioskowRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/moje-wnioski': {
       id: '/_authenticated/moje-wnioski'
       path: '/moje-wnioski'
@@ -208,6 +228,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedListaWnioskowRoute: typeof AuthenticatedListaWnioskowRoute
   AuthenticatedMojeWnioskiRoute: typeof AuthenticatedMojeWnioskiRoute
   AuthenticatedProfilNgoRoute: typeof AuthenticatedProfilNgoRoute
   AuthenticatedNgoNameRoute: typeof AuthenticatedNgoNameRoute
@@ -216,6 +237,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedListaWnioskowRoute: AuthenticatedListaWnioskowRoute,
   AuthenticatedMojeWnioskiRoute: AuthenticatedMojeWnioskiRoute,
   AuthenticatedProfilNgoRoute: AuthenticatedProfilNgoRoute,
   AuthenticatedNgoNameRoute: AuthenticatedNgoNameRoute,
