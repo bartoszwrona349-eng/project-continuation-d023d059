@@ -320,19 +320,31 @@ function CalendarPage() {
         </div>
       </div>
 
-      {selRange && (
-        <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit items-center gap-4 rounded-full border bg-primary px-6 py-3 text-primary-foreground shadow-xl">
-          <span className="text-sm">
-            {format(selRange.start, "EEEE d MMM", { locale: pl })}, {format(selRange.start, "HH:mm")}–{format(selRange.end, "HH:mm")}
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => setSel(null)}>Anuluj</Button>
+      {ranges.length > 0 && (
+        <div className="fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit max-w-[95vw] flex-wrap items-center gap-3 rounded-2xl border bg-primary px-5 py-3 text-primary-foreground shadow-xl">
+          <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+            {ranges.map((r) => (
+              <span key={r.key} className="flex items-center gap-1 rounded-full bg-primary-foreground/15 py-0.5 pl-3 pr-1 text-xs">
+                <span className="capitalize">{format(r.start, "EEE d MMM", { locale: pl })}</span>, {format(r.start, "HH:mm")}–{format(r.end, "HH:mm")}
+                <button
+                  type="button"
+                  aria-label="Usuń dzień"
+                  className="ml-1 rounded-full px-1.5 hover:bg-primary-foreground/20"
+                  onClick={() => removeDay(r.key)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setSels({})}>Wyczyść</Button>
           <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={goToRequest}>
-            Złóż wniosek
+            Złóż wniosek ({ranges.length} {ranges.length === 1 ? "dzień" : "dni"})
           </Button>
         </div>
       )}
       <p className="mt-4 text-sm text-muted-foreground">
-        Zaznacz wolne godziny przeciągając myszką w obrębie jednego dnia (lub kliknij początek, a potem koniec).
+        Zaznacz wolne godziny przeciągając myszką w obrębie dnia (lub kliknij początek, a potem koniec). Każdy kolejny dzień to osobny zakres — możesz zaznaczyć dowolnie wiele dni, także w innych tygodniach. Wszystkie trafią do jednego wniosku.
       </p>
     </div>
   );
