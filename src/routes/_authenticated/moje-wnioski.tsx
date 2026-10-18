@@ -62,12 +62,38 @@ export function MyRequests() {
     },
   });
 
-  const rows = q.data ?? [];
-  const count = (key: StatusFilter) => (key === "all" ? rows.length : rows.filter((r) => r.status === key).length);
-  const visible = rows.filter((r) => filter === "all" || r.status === filter);
+  type Row = (typeof rows)[number];
+
+  const groups = useMemo(() => {
+    const byRequest = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = r.request_id ?? r.id;
+      const list = byRequest.get(key);
+      if (list) list.push(r);
+      else byRequest.set(key, [r]);
+    }
+    return Array.from(byRequest.values()).map((list) => {
+      const days = [...list].sort((a, b) => a.start_at.localeCompare(b.start_at));
+      return {
+        key: days[0]!.request_id ?? days[0]!.id,
+        linkId: days[0]!.id,
+        eventName: days[0]!.event_name,
+        organization: days[0]!.organization,
+        status: days[0]!.status,
+        kind: days[0]!.kind,
+        participants: days[0]!.participants,
+        venue: days[0]!.venues?.name ?? "Obiekt",
+        days,
+      };
+    });
+  }, [rows]);
+
+  const count = (key: StatusFilter) =>
+    key === "all" ? groups.length : groups.filter((g) => g.status === key).length;
+  const visible = groups.filter((g) => filter === "all" || g.status === filter);
   const now = new Date();
-  const upcoming = visible.filter((r) => new Date(r.end_at) >= now);
-  const past = visible.filter((r) => new Date(r.end_at) < now);
+  const upcoming = visible.filter((g) => new Date(g.days[g.days.length - 1]!.end_at) >= now);
+  const past = visible.filter((g) => new Date(g.days[g.days.length - 1]!.end_at) < now);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
