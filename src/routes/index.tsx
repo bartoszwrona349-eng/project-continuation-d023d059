@@ -290,7 +290,8 @@ function CalendarPage() {
               <div className="border-b pr-2 pt-1 text-right text-xs text-muted-foreground">{String(h).padStart(2, "0")}:00</div>
               {days.map((d, di) => {
                 const info = cellInfo(d, h);
-                const inSel = sel && sel.day === di && h >= Math.min(sel.a, sel.b) && h <= Math.max(sel.a, sel.b);
+                const ds = sels[dk(d)];
+                const inSel = ds && h >= Math.min(ds.a, ds.b) && h <= Math.max(ds.a, ds.b);
                 const mine = info.hits.filter((b) => mineIds.has(b.id));
                 const showDetails = isAdmin ? info.hits : mine;
                 return (
