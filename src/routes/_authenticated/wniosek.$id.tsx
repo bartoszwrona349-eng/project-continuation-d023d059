@@ -66,6 +66,16 @@ function Detail() {
       return data;
     },
   });
+  const requestId = q.data?.request_id;
+  const siblings = useQuery({
+    queryKey: ["booking-group", requestId],
+    enabled: !!requestId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bookings").select("id,start_at,end_at").eq("request_id", requestId!).order("start_at");
+      if (error) throw error;
+      return data;
+    },
+  });
   const history = useQuery({
     queryKey: ["booking-history", id],
     enabled: isAdmin,
@@ -81,10 +91,13 @@ function Detail() {
   if (!b) return <p className="p-10">Nie znaleziono wniosku lub brak dostępu.</p>;
   const start = new Date(b.start_at);
   const end = new Date(b.end_at);
-  const mailInfo = { wniosek: b.event_name, obiekt: b.venues?.name, termin: `${format(start, "d MMM yyyy HH:mm", { locale: pl })}–${format(end, "HH:mm")}` };
+  const group = siblings.data && siblings.data.length > 0 ? siblings.data : [{ id: b.id, start_at: b.start_at, end_at: b.end_at }];
+  const fmtRange = (x: { start_at: string; end_at: string }) =>
+    `${format(new Date(x.start_at), "EEEE d MMM yyyy", { locale: pl })}, ${format(new Date(x.start_at), "HH:mm")}–${format(new Date(x.end_at), "HH:mm")}`;
+  const mailInfo = { wniosek: b.event_name, obiekt: b.venues?.name, termin: group.map(fmtRange).join("; ") };
 
   async function approve() {
-    const { error } = await supabase.from("bookings").update({ status: "approved", rejection_reason: null }).eq("id", id);
+    const { error } = await supabase.from("bookings").update({ status: "approved", rejection_reason: null }).eq("request_id", b.request_id);
     if (error) { toast.error(error.message); return; }
     toast.success("Wniosek zaakceptowany");
     await notifyApplicant(b!.contact_email, "approved", mailInfo);
@@ -92,7 +105,7 @@ function Detail() {
   }
   async function reject() {
     if (!reason.trim()) { toast.error("Podaj uzasadnienie odrzucenia"); return; }
-    const { error } = await supabase.from("bookings").update({ status: "rejected", rejection_reason: reason.trim() }).eq("id", id);
+    const { error } = await supabase.from("bookings").update({ status: "rejected", rejection_reason: reason.trim() }).eq("request_id", b.request_id);
     if (error) { toast.error(error.message); return; }
     toast.success("Wniosek odrzucony");
     await notifyApplicant(b!.contact_email, "rejected", { ...mailInfo, uzasadnienie: reason.trim() });
@@ -100,8 +113,8 @@ function Detail() {
     qc.invalidateQueries();
   }
   async function remove() {
-    if (!confirm("Na pewno usunąć ten wniosek?")) return;
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
+    if (!confirm(group.length > 1 ? `Na pewno usunąć cały wniosek (${group.length} dni)?` : "Na pewno usunąć ten wniosek?")) return;
+    const { error } = await supabase.from("bookings").delete().eq("request_id", b.request_id);
     if (error) { toast.error(error.message); return; }
     if (isAdmin && b!.user_id !== user?.id) await notifyApplicant(b!.contact_email, "deleted", mailInfo);
     qc.invalidateQueries();
@@ -151,7 +164,14 @@ function Detail() {
       </div>
       <dl className="mt-8 grid gap-4 rounded-lg border bg-card p-6 sm:grid-cols-2">
         <Item k="Obiekt" v={b.venues?.name} />
-        <Item k="Termin" v={`${format(start, "EEEE d MMM yyyy", { locale: pl })}, ${format(start, "HH:mm")}–${format(end, "HH:mm")}`} />
+        <div className="sm:col-span-2">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{group.length > 1 ? `Terminy (${group.length} dni)` : "Termin"}</dt>
+          <dd className="mt-1 grid gap-0.5">
+            {group.map((x) => (
+              <span key={x.id} className={x.id === b.id && group.length > 1 ? "font-semibold" : undefined}>{fmtRange(x)}</span>
+            ))}
+          </dd>
+        </div>
         <Item k="Uczestnicy" v={String(b.participants)} />
         <Item k="Kontakt" v={[b.contact_name, b.contact_email].filter(Boolean).join(" · ") || "—"} />
         <div className="sm:col-span-2"><Item k="Opis" v={b.description || "—"} /></div>
@@ -162,7 +182,7 @@ function Detail() {
       <div className="mt-6 flex flex-wrap gap-3">
         {isAdmin && b.status !== "approved" && <Button onClick={approve}>Zaakceptuj</Button>}
         {isAdmin && b.status !== "rejected" && <Button variant="outline" onClick={() => setRejectOpen(true)}>Odrzuć</Button>}
-        {isAdmin && <Button variant="secondary" onClick={openEdit}>Edytuj</Button>}
+        {isAdmin && <Button variant="secondary" onClick={openEdit}>{group.length > 1 ? "Edytuj ten dzień" : "Edytuj"}</Button>}
         {(isAdmin || b.user_id === user?.id) && <Button variant="destructive" onClick={remove}>Usuń</Button>}
       </div>
 
