@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { CalendarDays, ChevronRight, Inbox, Users } from "lucide-react";
@@ -54,13 +54,15 @@ export function MyRequests() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bookings")
-        .select("id,event_name,organization,status,kind,start_at,end_at,participants,venues(name)")
+        .select("id,request_id,event_name,organization,status,kind,start_at,end_at,participants,venues(name)")
         .eq("user_id", user!.id)
         .order("start_at", { ascending: false });
       if (error) throw error;
       return data;
     },
   });
+
+  const rows = q.data ?? [];
 
   type Row = (typeof rows)[number];
 
