@@ -87,4 +87,14 @@ describe("Moje wnioski", () => {
     await waitFor(() => expect(screen.getByText(/Nie złożyłeś jeszcze żadnego wniosku/)).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Przejdź do kalendarza" })).toHaveAttribute("href", "/");
   });
+
+  it("shows a multi-day request as one grouped entry", async () => {
+    const day2 = { ...OWN, id: "b-1b", request_id: "req-1", start_at: "2030-01-16T07:00:00.000Z", end_at: "2030-01-16T09:00:00.000Z" };
+    renderPage([day2, OWN]);
+
+    await waitFor(() => expect(screen.getByText("próba")).toBeInTheDocument());
+    expect(screen.getByText("2 dni")).toBeInTheDocument();
+    // one card per request, not one per day
+    expect(screen.getAllByRole("link", { name: /próba/ })).toHaveLength(1);
+  });
 });
