@@ -60,6 +60,7 @@ export type Database = {
           organization: string
           participants: number
           rejection_reason: string | null
+          request_id: string
           start_at: string
           status: string
           user_id: string
@@ -77,6 +78,7 @@ export type Database = {
           organization: string
           participants?: number
           rejection_reason?: string | null
+          request_id?: string
           start_at: string
           status?: string
           user_id: string
@@ -94,6 +96,7 @@ export type Database = {
           organization?: string
           participants?: number
           rejection_reason?: string | null
+          request_id?: string
           start_at?: string
           status?: string
           user_id?: string
